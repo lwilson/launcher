@@ -159,7 +159,7 @@ if [ "$LAUNCHER_SCHED" == "dynamic" ]; then
   RETRY=0
   while [ $RUNNING == "false" ]
   do
-    $LAUNCHER_DIR/tskserver $LAUNCHER_NJOBS $HOSTNAME 9471 2>/dev/null &
+    $LAUNCHER_DIR/tskserver $LAUNCHER_NJOBS localhost 9471 2>/dev/null &
     LAUNCHER_DYN_PID=$!
     disown $LAUNCHER_DYN_PID
     sleep 1s
@@ -179,7 +179,7 @@ if [ "$LAUNCHER_SCHED" == "dynamic" ]; then
     fi
   done
 
-  export LAUNCHER_DYN_COUNT="$HOSTNAME"
+  export LAUNCHER_DYN_COUNT=localhost
   export LAUNCHER_DYN_COUNT_PORT=9471
 
   if [ $LAUNCHER_USE_PHI -ne "0" ]; then
