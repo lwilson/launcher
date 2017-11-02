@@ -8,6 +8,7 @@ import random
 import uuid
 import getpass
 import hashlib
+import time
 
 # hsub: Submission script for the Herd Volunteer Computing Project
 # lwilson - TACC
@@ -20,15 +21,16 @@ def md5(fname):
       hash_md5.update(chunk)
   return hash_md5.hexdigest()
 
-
+def getauth(userid):
+  pass
 
 if len(sys.argv) <= 1:
   print "Too few args!"
   print "Usage: hsub <launcher_job_file>"
   exit()
 
-project_url = 'http://herd.tacc.utexas.edu/tacctest/'
-project_auth = '1f289518a167969cc67523ba7d5ced8a'
+project_url = 'https://herd.tacc.utexas.edu/'
+project_auth = '57d7f98b91631dc78db23afbeb93f236'
 
 
 # Setup the batch
@@ -98,6 +100,7 @@ for wu in job_file:
 """
     file_ref = file_ref + """<file_ref>
 <open_name>{}</open_name>
+<copy_file/>
 </file_ref>
 """.format('vina')
 
@@ -127,11 +130,48 @@ for wu in job_file:
         file_ref = file_ref + """
         <file_ref>
         <open_name>{}</open_name>
+        <copy_file/>
         </file_ref>
 """.format(a)
-        
 
-    job.wu_template = """<input_template>
+   
+    #Generate the vbox_job.xml file for this job     
+    vbox_xml = """<vbox_job>
+    <memory_size_mb>2048</memory_size_mb>
+      <os_name>RedHat_64</os_name>
+     """
+    for l in ufr.local_names:
+      vbox_xml = vbox_xml + "  <copy_to_shared>{}</copy_to_shared>\n".format(l)
+
+    vbox_xml = vbox_xml + """  <copy_cmdline_to_shared>1</copy_cmdline_to_shared>
+    <enable_shared_directory/>
+    </vbox_job>"""
+
+    xfname="{}_{}_vbox_job.xml".format(breq.batch_name, time.time())
+    xmlfile=open(xfname,"w")
+    xmlfile.write(vbox_xml)
+    xmlfile.close()
+
+    f = submit_api.FILE_DESC()
+    f.mode = 'local_staged'
+    f.source = xfname
+    job.files.append(copy.copy(f))
+
+    ufr.local_names.append(xfname)
+    ufr.boinc_names.append(xfname)
+    # Add file_ref to input_template
+    file_info = file_info + """<file_info>
+</file_info>
+"""
+    file_ref = file_ref + """
+        <file_ref>
+        <open_name>vbox_job.xml</open_name>
+        <copy_file/>
+        </file_ref>
+"""
+    
+
+    job.input_template = """<input_template>
                       {}
                       <workunit>
                       {}
@@ -140,7 +180,7 @@ for wu in job_file:
                       </workunit>
                       </input_template>""".format(file_info,file_ref,wu.rstrip())
 
-    job.result_template="""<output_template>
+    job.output_template="""<output_template>
     <file_info>
       <name><OUTFILE_0/></name>
       <generated_locally/>
@@ -149,13 +189,16 @@ for wu in job_file:
     </file_info>
     <result>
       <file_name><OUTFILE_0/></file_name>
-      <open_name>outfile.pdbqt</open_name>
+      <open_name>shared/outfile.pdbqt</open_name>
+      <no_delete/>
     </result>
     </output_template>"""
     batch.jobs.append(copy.copy(job))
 #  else:
     #Alternative case: simply dump the command into another file to be run by launcher
 #    launch_file.write(wu)
+
+
 
 ufrr = submit_api.upload_files(ufr)
 if ufrr[0].tag == 'error':
